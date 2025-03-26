@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>التعليقات والاستفسارات</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #222;
+        color: white;
+        text-align: center;
+      }
+      #popup-container {
+        width: 100%;
+        max-width: 500px;
+        background: #333;
+        padding: 20px;
+        border-radius: 10px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.2);
+      }
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      button {
+        background-color: green;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 10px;
+      }
+      #close-popup {
+        background-color: red;
+      }
+      /* تحسين لون صندوق التعليقات */
+      #feedback-list {
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: #555;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .feedback-item {
+        background-color: #777; /* لون أوضح لصندوق التعليق */
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .reply-container {
+        margin-top: 10px;
+        padding-left: 15px;
+      }
+      .reply-box {
+        background-color: #888; /* لون أوضح لصندوق الرد */
+        padding: 5px;
+        border-radius: 5px;
+        margin-top: 5px;
+      }
+      .reply-btn {
+        background-color: orange;
+        color: white;
+        padding: 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .delete-btn {
+        background-color: red;
+        color: white;
+        padding: 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="popup-container">
+      <h3>أضف تعليقًا أو استفسارًا</h3>
+      <textarea
+        id="feedback-input"
+        placeholder="اكتب استفسارك هنا..."
+        rows="4"
+      ></textarea>
+      <button onclick="submitFeedback()">إرسال</button>
+      <button id="close-popup" onclick="window.close()">إغلاق</button>
+
+      <h3>التعليقات السابقة</h3>
+      <div id="feedback-list"></div>
+    </div>
+
+    <script>
+      function submitFeedback() {
+        let feedbackInput = document.getElementById("feedback-input");
+        let feedbackText = feedbackInput.value.trim();
+        if (feedbackText === "") {
+          alert("يرجى كتابة استفسارك قبل الإرسال");
+          return;
+        }
+
+        let feedbackList = JSON.parse(localStorage.getItem("feedbacks")) || [];
+        feedbackList.push({ text: feedbackText, replies: [], likes: 0 });
+        localStorage.setItem("feedbacks", JSON.stringify(feedbackList));
+
+        feedbackInput.value = "";
+        displayFeedback();
+      }
+
+      function submitReply(index) {
+        let replyInput = document.getElementById(`reply-input-${index}`);
+        let replyText = replyInput.value.trim();
+        if (replyText === "") {
+          alert("يرجى كتابة الرد قبل الإرسال");
+          return;
+        }
+
+        let feedbackList = JSON.parse(localStorage.getItem("feedbacks")) || [];
+        feedbackList[index].replies.push(replyText);
+        localStorage.setItem("feedbacks", JSON.stringify(feedbackList));
+
+        replyInput.value = "";
+        displayFeedback();
+      }
+
+      function deleteFeedback(index) {
+        let feedbackList = JSON.parse(localStorage.getItem("feedbacks")) || [];
+        feedbackList.splice(index, 1);
+        localStorage.setItem("feedbacks", JSON.stringify(feedbackList));
+
+        displayFeedback();
+      }
+
+      function deleteReply(feedbackIndex, replyIndex) {
+        let feedbackList = JSON.parse(localStorage.getItem("feedbacks")) || [];
+        feedbackList[feedbackIndex].replies.splice(replyIndex, 1);
+        localStorage.setItem("feedbacks", JSON.stringify(feedbackList));
+
+        displayFeedback();
+      }
+
+      function displayFeedback() {
+        let feedbackList = JSON.parse(localStorage.getItem("feedbacks")) || [];
+        let feedbackContainer = document.getElementById("feedback-list");
+        feedbackContainer.innerHTML = "";
+
+        feedbackList.forEach((feedback, index) => {
+          let feedbackItem = document.createElement("div");
+          feedbackItem.className = "feedback-item";
+
+          feedbackItem.innerHTML = `
+                    <p>${feedback.text}</p>
+                    <button onclick="deleteFeedback(${index})" class="delete-btn">حذف</button>
+                    <div style="margin-top: 10px;">
+                        <input id="reply-input-${index}" placeholder="اكتب ردك..." style="width: 80%; padding: 5px; border-radius: 5px;" />
+                        <button onclick="submitReply(${index})" class="reply-btn">رد</button>
+                    </div>
+                    <div class="reply-container" id="reply-list-${index}">
+                        ${feedback.replies
+                          .map(
+                            (reply, replyIndex) => `
+                            <div class="reply-box">
+                                ${reply} 
+                                <button onclick="deleteReply(${index}, ${replyIndex})" class="delete-btn">حذف</button>
+                            </div>
+                        `
+                          )
+                          .join("")}
+                    </div>
+                `;
+
+          feedbackContainer.appendChild(feedbackItem);
+        });
+      }
+
+      window.onload = function () {
+        displayFeedback();
+      };
+    </script>
+  </body>
+</html>

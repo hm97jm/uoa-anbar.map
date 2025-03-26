@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>جامعة الأنبار - الخريطة التفاعلية</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+    <style>
+      /* زر إظهار موقعي - يكون في الأعلى */
+      #show-location-btn {
+        position: fixed; /* تثبيت الزر في مكانه على الشاشة */
+        top: 90px; /* المسافة من الأعلى */
+        right: 10px; /* المسافة من اليمين */
+        background-color: #007bff; /* لون خلفية أزرق */
+        color: white; /* لون النص */
+        border: none; /* إزالة الحدود */
+        padding: 8px 12px; /* مسافة داخلية للزر */
+        border-radius: 6px; /* حواف مستديرة */
+        font-weight: bold; /* جعل النص عريض */
+        cursor: pointer; /* شكل المؤشر عند التحويم */
+        z-index: 1200; /* جعله فوق الخريطة */
+      }
+
+      /* زر التجوال الافتراضي - يأتي بعد زر إظهار موقعي */
+      #virtual-tour-btn {
+        position: fixed;
+        top: 150px; /* يوضع أسفل زر الموقع */
+        right: 10px;
+        background-color: #1e90ff;
+        border: none;
+        padding: 6px;
+        border-radius: 50%; /* جعله دائري */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        z-index: 1100;
+        width: 50px; /* عرض الزر */
+        height: 50px; /* ارتفاع الزر */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: transform 0.3s ease;
+      }
+
+      /* عند التحويم على زر التجوال */
+      #virtual-tour-btn:hover {
+        transform: scale(1.1); /* تكبير بسيط عند التحويم */
+      }
+
+      /* صورة الأيقونة داخل زر التجوال */
+      #virtual-tour-icon img {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+      }
+
+      /* زر الطبقات - نعدل مكانه وإزالة الخلفية البيضاء */
+      .leaflet-control-layers {
+        position: fixed !important; /* نثبّت الزر */
+        top: 210px !important; /* أسفل زر التجوال */
+        right: 10px !important;
+        background: transparent !important; /* إزالة الخلفية البيضاء */
+        box-shadow: none !important; /* إزالة الظل */
+        padding: 0 !important;
+        border: none !important;
+      }
+
+      /* أيقونة الزر نفسه */
+      .leaflet-control-layers-toggle {
+        background-color: #007bff !important;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+      }
+
+      /* عند التحويم على زر الطبقات */
+      .leaflet-control-layers-toggle:hover {
+        transform: scale(1.1);
+      }
+      /* القائمة الداخلية للطبقات */
+      .leaflet-control-layers-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px; /* مسافة بين العناصر */
+        padding: 8px;
+        margin-top: 5px;
+      }
+
+      /* تنسيق كل عنصر (زر طبقة) */
+      .leaflet-control-layers-list label {
+        background-color: #ffffff;
+        color: #333;
+        border-radius: 8px; /* حواف ناعمة */
+        padding: 6px 10px;
+        font-weight: bold;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      /* تأثير عند التحويم */
+      .leaflet-control-layers-list label:hover {
+        background-color: #f0f8ff;
+        transform: scale(1.03);
+      }
+
+      /* الشريط العلوي */
+      #top-bar {
+        background-color: #315d8c;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        position: fixed;
+        top: 0;
+        width: 100%;
+        height: 80px;
+        z-index: 1000;
+      }
+
+      #top-bar .logo {
+        height: 100%;
+      }
+
+      #top-bar .center-image {
+        height: 100%;
+        max-height: 100px;
+        object-fit: contain;
+      }
+
+      #top-bar .buttons {
+        display: flex;
+        gap: 10px;
+        margin-right: 20px;
+      }
+
+      #top-bar .buttons button {
+        background-color: white;
+        color: red;
+        border: none;
+        padding: 7px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      #top-bar .buttons button:hover {
+        background-color: #f8d7da;
+      }
+
+      /* الخريطة */
+      #map {
+        width: 100%;
+        height: calc(100vh - 80px);
+        position: absolute;
+        top: 80px;
+        z-index: 1;
+      }
+
+      /* زر إظهار القائمة الجانبية */
+      #toggle-panel {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        z-index: 1100;
+        background-color: red;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 75%;
+        cursor: pointer;
+      }
+
+      #toggle-panel:hover {
+        background-color: #aa0000;
+      }
+
+      /* القائمة الجانبية */
+      #side-panel {
+        width: 300px;
+        height: calc(100% - 80px);
+        background-color: #333;
+        color: white;
+        position: fixed;
+        top: 80px;
+        left: -300px;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        overflow-y: auto;
+      }
+
+      #side-panel.show {
+        left: 0;
+      }
+
+      #side-panel-header {
+        text-align: center;
+        padding: 15px;
+        background-color: #444;
+        font-size: 18px;
+      }
+
+      #side-panel-header img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+      }
+
+      #search-box {
+        padding: 10px;
+        margin: 10px;
+        width: calc(100% - 40px);
+        border: none;
+        border-radius: 5px;
+      }
+
+      #side-panel-content ul {
+        list-style-type: none;
+        padding: 0;
+      }
+
+      #colleges-item,
+      #clubs-item {
+        background-color: #0056b3;
+        color: white;
+        font-weight: bold;
+        position: relative;
+        padding: 10px;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        border: 2px solid #0056b3;
+      }
+
+      #colleges-item:hover,
+      #clubs-item:hover {
+        background-color: #003d80;
+      }
+
+      #colleges-item::after,
+      #clubs-item::after {
+        content: "\f078";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      ul.sub-list {
+        list-style-type: none;
+        padding-left: 20px;
+        display: none;
+      }
+
+      ul.sub-list li {
+        background-color: #1e90ff;
+        color: white;
+        margin: 5px 0;
+        padding: 8px;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      ul.sub-list li:hover {
+        background-color: #0056b3;
+      }
+
+      /* نافذة التفاصيل */
+      #details-box {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 500px;
+        background: white;
+        border-radius: 10px 10px 0 0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+        display: none;
+        z-index: 1100;
+        overflow: hidden;
+      }
+
+      #details-header {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #details-header img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+      }
+
+      .details-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        z-index: 1200;
+      }
+
+      .details-prev {
+        left: 10px;
+      }
+
+      .details-next {
+        right: 10px;
+      }
+
+      #details-content {
+        padding: 15px;
+        text-align: center;
+      }
+
+      #details-close {
+        background: red;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      #details-close:hover {
+        background: #aa0000;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- نافذة صورة 360 -->
+    <div
+      id="image-container"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        z-index: 9999;
+      "
+    >
+      <iframe
+        id="teleport360"
+        src="https://www.teleport360.app/share/1bed8f59-88cc-4ff4-aaf1-a6996f333131"
+        width="800"
+        height="500"
+        frameborder="0"
+        allowfullscreen
+      ></iframe>
+      <div style="text-align: center; margin-top: 10px">
+        <button
+          id="close-btn"
+          style="
+            padding: 8px 20px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+          "
+        >
+          إغلاق
+        </button>
+      </div>
+    </div>
+
+    <!-- زر فتح صفحة التعليقات والاستفسارات -->
+    <button
+      id="open-feedback"
+      style="
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgb(6, 124, 242);
+        color: white;
+        padding: 15px 25px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        z-index: 1100;
+      "
+    >
+      للاستفسار او التعليق
+    </button>
+    <!-- زر التجوال الافتراضي مع أيقونة الشخص -->
+    <button id="virtual-tour-btn" onclick="openVirtualTour()">
+      <div id="virtual-tour-icon">
+        <img src="1192833.png" alt="التجوال الافتراضي" />
+      </div>
+    </button>
+
+    <!-- الشريط العلوي -->
+    <div id="top-bar">
+      <img src="Ulogo.png" alt="شعار الجامعة" class="logo" />
+      <img src="بو.jpg" alt="بوابة الجامعة" class="center-image" />
+      <div class="buttons">
+        <button onclick="window.open('https://www.uoanbar.edu.iq/', '_blank')">
+          الموقع الرسمي
+        </button>
+        <button onclick="window.location.href='student-guide.html'">
+          دليل الطالب
+        </button>
+        <button onclick="window.location.href='360.html'">صور 360 درجة</button>
+
+        <button onclick="window.location.href='bus-tracking.html'">
+          تتبع الحافلات
+        </button>
+        <button onclick="window.location.href='2d-map.html'">خارطة 2D</button>
+      </div>
+    </div>
+
+    <!-- زر إظهار القائمة الجانبية -->
+    <button id="toggle-panel">☰</button>
+
+    <!-- زر إظهار موقعي الحالي -->
+    <button id="show-location-btn" onclick="addCurrentLocation()">
+      إظهار موقعي الحالي
+    </button>
+
+    <!-- القائمة الجانبية -->
+    <div id="side-panel">
+      <div id="side-panel-header">
+        <input
+          type="text"
+          id="search-box"
+          placeholder="بحث عن الأماكن..."
+          oninput="searchLocations()"
+        />
+        <img src="بوابة.jpg" alt="شعار الجامعة" />
+      </div>
+      <div id="side-panel-content">
+        <ul>
+          <!-- قائمة الكليات -->
+          <li id="colleges-item" onclick="toggleSubList('colleges-list')">
+            <i class="fas fa-university"></i> الكليات
+          </li>
+          <ul id="colleges-list" class="sub-list">
+            <li
+              onclick="showLocation('كلية العلوم', ['science1.jpg', 'science2.jpg'], 'كلية العلوم تقدم تخصصات متعددة في العلوم الطبيعية.', [33.41, 43.25])"
+            >
+              <i class="fas fa-flask"></i> كلية العلوم
+            </li>
+            <li
+              onclick="showLocation('كلية القانون', ['law1.jpg', 'law2.jpg'], 'كلية القانون تعد الأفضل لدراسة التشريعات والقوانين.', [33.4, 43.26])"
+            >
+              <i class="fas fa-balance-scale"></i> كلية القانون
+            </li>
+            <li
+              onclick="showLocation('كلية الآداب', ['arts1.jpg', 'arts2.jpg'], 'كلية الآداب تقدم برامج في الأدب واللغات.', [33.43, 43.27])"
+            >
+              <i class="fas fa-book"></i> كلية الآداب
+            </li>
+            <li
+              onclick="showLocation('كلية علوم الحاسوب وتكنولوجيا المعلومات', ['بوابة.jpg','حاسوب 1.jpg', 'حاسوب 2.jpg','حاسوب 3.jpg',], 'كلية علوم الحاسوب وتكنولوجيا المعلومات تقدم برامج متقدمة في علوم الحاسوب.', [33.42, 43.28])"
+            >
+              <i class="fas fa-laptop"></i> كلية علوم الحاسوب وتكنولوجيا
+              المعلومات
+            </li>
+          </ul>
+
+          <!-- قائمة النوادي -->
+          <li id="clubs-item" onclick="toggleSubList('clubs-list')">
+            <i class="fas fa-utensils"></i> النوادي
+          </li>
+          <ul id="clubs-list" class="sub-list">
+            <li
+              onclick="showLocation('نادي كلية العلوم', ['club_science1.jpg', 'club_science2.jpg'], 'نادي كلية العلوم يقدم خدمات متنوعة للطلاب.', [33.43, 43.3])"
+            >
+              <i class="fas fa-flask"></i> نادي كلية العلوم
+            </li>
+            <li
+              onclick="showLocation('النادي المركزي', ['club_main1.jpg', 'club_main2.jpg'], 'النادي المركزي هو المكان الرئيسي للفعاليات.', [33.42, 43.32])"
+            >
+              <i class="fas fa-utensils"></i> النادي المركزي
+            </li>
+            <li
+              onclick="showLocation('نادي كلية الحاسوب', ['club_cs1.jpg', 'club_cs2.jpg'], 'نادي كلية الحاسوب يقدم خدمات تقنية.', [33.41, 43.34])"
+            >
+              <i class="fas fa-laptop"></i> نادي كلية الحاسوب
+            </li>
+            <li
+              onclick="showLocation('نادي كلية القانون', ['club_law1.jpg', 'club_law2.jpg'], 'نادي كلية القانون يقدم خدمات استشارية.', [33.4, 43.36])"
+            >
+              <i class="fas fa-balance-scale"></i> نادي كلية القانون
+            </li>
+            <li
+              onclick="showLocation('نادي كلية الآداب', ['club_arts1.jpg', 'club_arts2.jpg'], 'نادي كلية الآداب مخصص للأنشطة الثقافية.', [33.43, 43.38])"
+            >
+              <i class="fas fa-book"></i> نادي كلية الآداب
+            </li>
+            <li
+              onclick="showLocation('نادي كلية الهندسة', ['club_engineering1.jpg', 'club_engineering2.jpg'], 'نادي كلية الهندسة يهتم بالمشاريع الطلابية.', [33.42, 43.4])"
+            >
+              <i class="fas fa-cogs"></i> نادي كلية الهندسة
+            </li>
+          </ul>
+        </ul>
+      </div>
+    </div>
+
+    <!-- نافذة التفاصيل -->
+    <div id="details-box">
+      <div id="details-header">
+        <button class="details-nav details-prev" onclick="prevImage()">
+          &#8249;
+        </button>
+        <img src="" alt="صورة المكان" id="details-image" />
+        <button class="details-nav details-next" onclick="nextImage()">
+          &#8250;
+        </button>
+      </div>
+      <div id="details-content">
+        <p id="details-description"></p>
+        <button id="details-close" onclick="closeDetails()">إغلاق</button>
+      </div>
+    </div>
+
+    <!-- الخريطة -->
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      // إعداد الخريطة
+      const map = L.map("map").setView([33.4, 43.26], 15);
+
+      // الطبقة الأساسية (OpenStreetMap)
+      const baseLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution: "&copy; OpenStreetMap contributors",
+        }
+      ).addTo(map);
+
+      // الطبقة القمر الصناعي
+      const satelliteLayer = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "&copy; ESRI",
+        }
+      );
+
+      // طبقة الصورة 2D (صور ثابتة)
+      const imageLayer = L.imageOverlay("images/ioo.png", [
+        [33.39626, 43.25159], // جنوب غرب
+        [33.40927, 43.27455], // شمال شرق
+      ]).addTo(map);
+
+      // إعداد التحكم في الطبقات
+      const layersControl = L.control
+        .layers({
+          "الخريطة الأساسية": baseLayer,
+          "القمر الصناعي": satelliteLayer,
+          "صورة 2D": imageLayer,
+        })
+        .addTo(map);
+
+      // إنشاء مصفوفة تحتوي على المواقع وعناوين الصور 360
+      const panoramicPoints = [
+        {
+          title: "قاعة الشهداء",
+          coords: [33.40125, 43.26398],
+          url: "https://www.teleport360.app/share/1bed8f59-88cc-4ff4-aaf1-a6996f333131",
+        },
+        {
+          title: "الموقع 2",
+          coords: [33.40293, 43.25933],
+          url: "https://www.teleport360.app/share/1bed8f59-88cc-4ff4-aaf1-a6996f333131",
+        },
+        { title: "الموقع 3", coords: [33.40336, 43.25968], url: "#" },
+        { title: "الموقع 4", coords: [33.40278, 43.26117], url: "#" },
+        { title: "الموقع 5", coords: [33.40287, 43.26325], url: "#" },
+        { title: "الموقع 6", coords: [33.40263, 43.26494], url: "#" },
+        { title: "الموقع 7", coords: [33.40018, 43.264], url: "#" },
+        { title: "الموقع 8", coords: [33.3988, 43.26636], url: "#" },
+        { title: "الموقع 9", coords: [33.40436, 43.26276], url: "#" },
+        { title: "الموقع 10", coords: [33.40418, 43.26377], url: "#" },
+      ];
+
+      // إنشاء نافذة مخصصة للصورة 360
+      const viewerBox = document.createElement("div");
+      viewerBox.id = "panorama-box";
+      viewerBox.style.cssText = `
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%; max-width: 800px; height: 80%;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  display: none;
+  z-index: 2000;
+`;
+      viewerBox.innerHTML = `
+  <iframe id="panorama-frame" src="" style="width:100%; height:90%; border:none;"></iframe>
+  <button onclick="document.getElementById('panorama-box').style.display='none'" style="display:block; margin:10px auto; padding:10px 20px; background:red; color:white; border:none; border-radius:5px;">إغلاق</button>
+`;
+      document.body.appendChild(viewerBox);
+
+      // إضافة النقاط الدائرية الحمراء وعند النقر تفتح النافذة
+      panoramicPoints.forEach((point) => {
+        const circle = L.circleMarker(point.coords, {
+          color: "red",
+          radius: 4,
+          fillColor: "red",
+          fillOpacity: 0.8,
+        }).addTo(map);
+        circle.bindPopup(`<b>${point.title}</b>`);
+        circle.on("click", function () {
+          document.getElementById("panorama-frame").src = point.url;
+          document.getElementById("panorama-box").style.display = "block";
+        });
+      });
+
+      let currentImages = [];
+      let currentIndex = 0;
+
+      const togglePanel = document.getElementById("toggle-panel");
+      const sidePanel = document.getElementById("side-panel");
+
+      togglePanel.addEventListener("click", () => {
+        sidePanel.classList.toggle("show");
+      });
+
+      function toggleSubList(id) {
+        const subList = document.getElementById(id);
+        subList.style.display =
+          subList.style.display === "block" ? "none" : "block";
+      }
+
+      function showLocation(title, images, description, coords) {
+        currentImages = images;
+        currentIndex = 0;
+
+        document.getElementById("details-image").src = images[currentIndex];
+        document.getElementById("details-description").textContent =
+          description;
+        document.getElementById("details-box").style.display = "block";
+
+        map.setView(coords, 16);
+        L.marker(coords).addTo(map).bindPopup(title).openPopup();
+      }
+
+      function closeDetails() {
+        document.getElementById("details-box").style.display = "none";
+      }
+
+      function prevImage() {
+        currentIndex =
+          (currentIndex - 1 + currentImages.length) % currentImages.length;
+        document.getElementById("details-image").src =
+          currentImages[currentIndex];
+      }
+
+      function nextImage() {
+        currentIndex = (currentIndex + 1) % currentImages.length;
+        document.getElementById("details-image").src =
+          currentImages[currentIndex];
+      }
+
+      function searchLocations() {
+        const query = document.getElementById("search-box").value.toLowerCase();
+        const items = document.querySelectorAll("#side-panel-content ul li");
+        items.forEach((item) => {
+          if (item.textContent.toLowerCase().includes(query)) {
+            item.style.display = "block";
+          } else {
+            item.style.display = "none";
+          }
+        });
+      }
+
+      // --- إضافة موقعي الحالي على الخريطة ---
+      function addCurrentLocation() {
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+
+              // إضافة دائرة للموقع الحالي
+              const userCircle = L.circle([latitude, longitude], {
+                color: "blue", // لون الدائرة
+                fillColor: "blue", // لون تعبئة الدائرة
+                fillOpacity: 0.5, // شفافية التعبئة
+                radius: 25, // نصف قطر الدائرة بالمتر
+              }).addTo(map);
+
+              // إضافة نافذة منبثقة
+              userCircle
+                .bindPopup(
+                  `أنت هنا: (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`
+                )
+                .openPopup();
+
+              // ضبط الخريطة لتتمركز حول الموقع الحالي
+              map.setView([latitude, longitude], 16);
+            },
+            (error) => {
+              console.error("تعذر الحصول على الموقع:", error.message);
+              alert("تعذر الحصول على الموقع. يرجى تفعيل GPS في جهازك.");
+            }
+          );
+        } else {
+          alert("المتصفح الخاص بك لا يدعم ميزة الموقع الجغرافي.");
+        }
+      }
+
+      // استدعاء وظيفة موقعي الحالي عند تحميل الصفحة
+      addCurrentLocation();
+    </script>
+    <script>
+      document
+        .getElementById("open-feedback")
+        .addEventListener("click", function () {
+          window.open(
+            "feedback.html",
+            "FeedbackPopup",
+            "width=600,height=500,top=100,left=100"
+          );
+        });
+    </script>
+
+    <!-- زر فتح المحادثة -->
+    <button id="toggle-chatbot">💬 تواصل معنا</button>
+
+    <!-- نافذة الدردشة الذكية -->
+    <div id="chatbot-container">
+      <div id="chatbot-header">
+        <span>أسئلة شائعة</span>
+        <button id="close-chatbot">✖️</button>
+      </div>
+      <div id="chatbot-content">
+        <div id="chatbot-messages">
+          <div class="bot-message">مرحبًا! كيف يمكنني مساعدتك؟</div>
+        </div>
+        <div id="faq">
+          <div class="faq-item" onclick="askQuestion('مواعيد التسجيل')">
+            ما هي مواعيد التسجيل؟
+          </div>
+          <div class="faq-item" onclick="askQuestion('كيفية التقديم')">
+            كيفية التقديم؟
+          </div>
+          <div class="faq-item" onclick="askQuestion('الدعم')">
+            هل أحتاج إلى مساعدة إضافية؟
+          </div>
+        </div>
+        <input type="text" id="chatbot-input" placeholder="اكتب سؤالك..." />
+        <button id="send-message">إرسال</button>
+        <div id="contact-support">
+          <button id="whatsapp-support">📲 تواصل عبر واتساب</button>
+          <button id="telegram-support">✈️ تواصل عبر تليجرام</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- أنماط CSS لتصميم النافذة -->
+    <style>
+      #toggle-chatbot {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #0088cc;
+        color: white;
+        padding: 15px 25px;
+        font-size: 16px;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 1000;
+      }
+
+      #chatbot-container {
+        position: fixed;
+        bottom: 70px;
+        right: 20px;
+        width: 350px;
+        height: 500px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        display: none;
+        z-index: 1001;
+      }
+
+      #chatbot-header {
+        background-color: #0088cc;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        border-radius: 10px 10px 0 0;
+      }
+
+      #chatbot-header span {
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      #close-chatbot {
+        background: none;
+        color: white;
+        font-size: 20px;
+        border: none;
+        cursor: pointer;
+      }
+
+      #chatbot-content {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        height: calc(100% - 60px);
+      }
+
+      #chatbot-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      .bot-message {
+        background-color: #f1f1f1;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 5px;
+        text-align: left;
+      }
+
+      #faq {
+        margin-top: 10px;
+      }
+
+      .faq-item {
+        background-color: #f1f1f1;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      #chatbot-input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+      }
+
+      #send-message {
+        background-color: #0088cc;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+      }
+
+      #send-message:hover {
+        background-color: #006fa1;
+      }
+
+      #contact-support {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      #whatsapp-support,
+      #telegram-support {
+        background-color: #25d366;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      #whatsapp-support:hover,
+      #telegram-support:hover {
+        background-color: #128c7e;
+      }
+    </style>
+
+    <!-- سكريبت التحكم في المحادثة -->
+    <script>
+      // فتح/إغلاق نافذة الدردشة
+      document
+        .getElementById("toggle-chatbot")
+        .addEventListener("click", function () {
+          let container = document.getElementById("chatbot-container");
+          container.style.display =
+            container.style.display === "block" ? "none" : "block";
+        });
+
+      // إغلاق نافذة الدردشة
+      document
+        .getElementById("close-chatbot")
+        .addEventListener("click", function () {
+          document.getElementById("chatbot-container").style.display = "none";
+        });
+
+      // إرسال الرسالة
+      document
+        .getElementById("send-message")
+        .addEventListener("click", function () {
+          let userMessage = document.getElementById("chatbot-input").value;
+          if (userMessage) {
+            appendMessage(userMessage, "user");
+            document.getElementById("chatbot-input").value = "";
+            generateBotResponse(userMessage);
+          }
+        });
+
+      // إضافة الرسائل إلى واجهة المحادثة
+      function appendMessage(message, sender) {
+        let messageContainer = document.createElement("div");
+        messageContainer.classList.add(sender + "-message");
+        messageContainer.textContent = message;
+        document
+          .getElementById("chatbot-messages")
+          .appendChild(messageContainer);
+      }
+
+      // الرد التلقائي من البوت
+      function generateBotResponse(userMessage) {
+        let botMessage = "";
+
+        // بعض الردود التلقائية البسيطة
+        if (userMessage.includes("مواعيد التسجيل")) {
+          botMessage = "مواعيد التسجيل تبدأ من 1 سبتمبر وتنتهي في 30 سبتمبر.";
+        } else if (userMessage.includes("كيفية التقديم")) {
+          botMessage =
+            "يمكنك التقديم من خلال الموقع الإلكتروني عبر الرابط: www.university.edu/apply";
+        } else if (userMessage.includes("الدعم")) {
+          botMessage =
+            "إذا كنت بحاجة لمساعدة إضافية، يمكنك التواصل مع فريق الدعم عبر واتساب أو تليجرام.";
+        } else {
+          botMessage =
+            "عذرًا، لم أفهم سؤالك. يمكنك المحاولة مرة أخرى أو التواصل مع الدعم.";
+        }
+
+        appendMessage(botMessage, "bot");
+      }
+
+      // إضافة السؤال إلى واجهة الدردشة عند النقر على الأسئلة الشائعة
+      function askQuestion(question) {
+        let response = "";
+        if (question === "مواعيد التسجيل") {
+          response = "مواعيد التسجيل تبدأ من 1 سبتمبر وتنتهي في 30 سبتمبر.";
+        } else if (question === "كيفية التقديم") {
+          response =
+            "يمكنك التقديم من خلال الموقع الإلكتروني عبر الرابط: www.university.edu/apply";
+        } else if (question === "الدعم") {
+          response =
+            "إذا كنت بحاجة لمساعدة إضافية، يمكنك التواصل مع فريق الدعم عبر واتساب أو تليجرام.";
+        }
+        appendMessage(response, "bot");
+      }
+
+      // تواصل عبر واتساب
+      document
+        .getElementById("whatsapp-support")
+        .addEventListener("click", function () {
+          window.open(
+            "https://wa.me/1234567890?text=مرحبًا، أريد الاستفسار عن الجامعة.",
+            "_blank"
+          );
+        });
+
+      // تواصل عبر تليجرام
+      document
+        .getElementById("telegram-support")
+        .addEventListener("click", function () {
+          window.open("https://t.me/Anbarmap_bot", "_blank");
+        });
+    </script>
+    <!-- الشريط السفلي للصور -->
+    <div id="image-bar">
+      <div class="image-container">
+        <!-- إضافة المزيد من الصور من مجلد المشروع -->
+        <img src="images/1.jpg" alt="Image 1" />
+        <img src="بو.jpg" alt="Image 2" />
+        <img src="بوابة.jpg" alt="Image 3" />
+        <img src="حاسوب 1.jpg" alt="Image 4" />
+        <img src="حاسوب 2.jpg" alt="Image 5" />
+        <img src="حاسوب 3.jpg" alt="Image 6" />
+        <img src="images/2.jpg" alt="Image 7" />
+        <img src="images/3.jpg" alt="Image 8" />
+        <img src="images/4.jpg" alt="Image 9" />
+        <img src="images/5.jpg" alt="Image 10" />
+        <img src="images/6.jpg" alt="Image 11" />
+        <img src="images/7.jpg" alt="Image 12" />
+        <img src="images/8.jpg" alt="Image 13" />
+        <img src="images/9.jpg" alt="Image 14" />
+        <img src="images/10.jpg" alt="Image 15" />
+        <img src="images/11.jpg" alt="Image 16" />
+        <img src="images/19.jpg" alt="Image 19" />
+        <img src="images/20.jpg" alt="Image 20" />
+        <img src="images/21.jpg" alt="Image 21" />
+        <img src="images/22.jpg" alt="Image 22" />
+        <img src="images/23.jpg" alt="Image 23" />
+
+        <!-- تكرار الصور لجعل الشريط دائم التكرار -->
+        <img src="images/1.jpg" alt="Image 1" />
+        <img src="بو.jpg" alt="Image 2" />
+        <img src="بوابة.jpg" alt="Image 3" />
+        <img src="حاسوب 1.jpg" alt="Image 4" />
+        <img src="حاسوب 2.jpg" alt="Image 5" />
+        <img src="حاسوب 3.jpg" alt="Image 6" />
+        <img src="images/2.jpg" alt="Image 7" />
+        <img src="images/3.jpg" alt="Image 8" />
+        <img src="images/4.jpg" alt="Image 9" />
+        <img src="images/5.jpg" alt="Image 10" />
+        <img src="images/6.jpg" alt="Image 11" />
+        <img src="images/7.jpg" alt="Image 12" />
+        <img src="images/8.jpg" alt="Image 13" />
+        <img src="images/9.jpg" alt="Image 14" />
+        <img src="images/10.jpg" alt="Image 15" />
+        <img src="images/11.jpg" alt="Image 16" />
+        <img src="images/19.jpg" alt="Image 19" />
+        <img src="images/20.jpg" alt="Image 20" />
+        <img src="images/21.jpg" alt="Image 21" />
+        <img src="images/22.jpg" alt="Image 22" />
+        <img src="images/23.jpg" alt="Image 23" />
+      </div>
+    </div>
+
+    <!-- مربع الفيديو في الزاوية اليمنى -->
+    <div id="video-container">
+      <video id="video" width="280" height="170" controls autoplay muted>
+        <source src="images/sample-video.mp4" type="video/mp4" />
+        <!-- ضع المسار الصحيح للفيديو -->
+        Your browser does not support the video tag.
+      </video>
+      <!-- أزرار إغلاق الفيديو وخارطة 2D بجانب بعضهما -->
+      <div id="video-controls">
+        <button id="close-video" onclick="closeVideo()">إغلاق الفيديو</button>
+        <button id="open-2d-map" onclick="open2DMap()">خارطة 2D</button>
+      </div>
+    </div>
+
+    <style>
+      /* تنسيق الشريط السفلي */
+      #image-bar {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        background-color: #315d8c;
+        padding: 10px 0;
+        z-index: 1; /* الشريط في الأسفل بحيث تكون الأزرار أمامه */
+      }
+
+      .image-container {
+        display: flex;
+        gap: 10px;
+        overflow-x: hidden;
+        justify-content: flex-start;
+        /* ضبط تكرار الصور داخل الشريط */
+        width: max-content; /* يسمح بتوسيع الشريط لاحتواء الصور بشكل مستمر */
+        animation: slide 30s linear infinite;
+      }
+
+      .image-container img {
+        height: 100px;
+        width: auto;
+        border-radius: 8px;
+      }
+
+      /* مربع الفيديو في الزاوية اليمنى */
+      #video-container {
+        position: fixed;
+        bottom: 90px; /* وضع الفيديو أعلى الشريط السفلي المتحرك */
+        right: 10px;
+        z-index: 2;
+        background-color: rgba(0, 0, 0, 0.7); /* خلفية مظللة */
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+      }
+
+      /* تخصيص أزرار التحكم بالفيديو (إغلاق الفيديو وخارطة 2D) */
+      #video-controls {
+        display: flex;
+        gap: 10px; /* المسافة بين الأزرار */
+        justify-content: center; /* توسيط الأزرار */
+        margin-top: 10px; /* إبعاد الأزرار قليلاً عن الفيديو */
+      }
+
+      /* زر إغلاق الفيديو */
+      #close-video {
+        background-color: red;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      #close-video:hover {
+        background-color: #aa0000;
+      }
+
+      /* زر خارطة 2D */
+      #open-2d-map {
+        background-color: #315d8c; /* أخضر */
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      #open-2d-map:hover {
+        background-color: #45a049;
+      }
+
+      /* حركة الشريط من اليسار إلى اليمين */
+      @keyframes slide {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(-50%);
+        }
+      }
+    </style>
+
+    <script>
+      // وظيفة لإغلاق الفيديو
+      function closeVideo() {
+        const videoContainer = document.getElementById("video-container");
+        videoContainer.style.display = "none";
+      }
+
+      // ضبط سرعة الفيديو عند تحميل الصفحة
+      const videoElement = document.getElementById("video");
+      videoElement.playbackRate = 2; // تعيين سرعة الفيديو إلى 2x
+
+      // وظيفة لفتح صفحة خارطة 2D
+      function open2DMap() {
+        window.open("2d-map.html", "_blank", "width=800,height=600");
+      }
+
+      // دالة لفتح صفحة التجوال الافتراضي
+      function openVirtualTour() {
+        window.open("your_virtual_tour_page.html", "_blank"); // استبدل "your_virtual_tour_page.html" بالصفحة التي تريد فتحها
+      }
+    </script>
+  </body>
+</html>
